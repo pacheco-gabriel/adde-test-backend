@@ -1,5 +1,5 @@
 from Models.Database import Database
-from datetime import datetime,timedelta
+import datetime as dt
 import json
 
 class ModelClima:
@@ -10,21 +10,27 @@ class ModelClima:
 
     # RESPONSÁVEL POR BUSCAR UM CLIMA NO BANCO
     def select(self, cidade):
-        agora       = datetime.now()
-        print(datetime)
-        tempoLimite = (agora - timedelta(minutes = self.cacheTime)).strftime("%H:%M:%S")
-        result      = self.database.execute('SELECT response FROM clima_historico;')
+        tempoLimite = dt.datetime.now() - dt.timedelta(minutes = self.cacheTime);
+        tempoLimite = tempoLimite.strftime("%Y-%m-%d %H:%M:%S")
+        cidade      = cidade.lower()+'%%'
+        result      = self.database.execute('SELECT response FROM clima_historico WHERE lower(cidade) ILIKE \''+cidade+'\' AND data_consulta >= \''+tempoLimite+'\' ORDER BY id DESC LIMIT 1;')
 
-        print(result)
+        retorno     = []
+        while True:
+            rows = result.fetchmany(10000)
+            if not rows:
+                break
+            for row in rows:
+                retorno.append(row[0])
+                pass
 
-        if result.response is None:
-            return False
+        if retorno == []:
+            return []
 
-        return result.response.json()
+        return json.loads(retorno[0])
 
-    # RESPONSÁVEL POR INSERIR UM RETORNO DE CLIMATE
-    def insert(self, climate):
-        city         = climate.results.city
-        jsonResponse = json.dumps(climate)
-        agora        = datetime.now().strftime("%H:%M:%S")
-        return self.database.execute('INSERT INTO clima_historico (cidade, response, data_consulta) VALUES ("'+city+'", "'+jsonResponse+'", "'+agora+'" );')
+    # RESPONSÁVEL POR INSERIR UM RETORNO DE CLIMA
+    def insert(self, weather):
+        city         = weather['results']['city']
+        jsonResponse = json.dumps(weather)
+        return self.database.execute("INSERT INTO clima_historico (id, cidade, response, data_consulta) VALUES ( nextval('clima_sequence'), '"+city+"', '"+jsonResponse+"', current_timestamp);")

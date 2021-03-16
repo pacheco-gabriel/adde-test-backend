@@ -1,48 +1,45 @@
 #BIBLIOTECA DE REQUISIÇÕES
 import requests
+import json
+from flask import Flask, jsonify
 from Models.Clima import ModelClima;
 
 
 class Clima:
 
-    def __init__(self, cidade):
+    def __init__(self, cidade, ip):
         self.cidade  = cidade
+        self.ip      = ip
         self.model   = ModelClima();
 
     # ÉTODO PRINCIPAL POR EFETUAR A BUSCA DO CLIMA
     def search(self):
 
         # BUSCANDO REGISTRO NO BANCO
-        climate = self.getClimate()
-        if(climate):
-            return climate
+        weather = self.getWeather()
+        if(len(weather) > 0):
+            return self.getReturn(weather)
 
-        city = self.getCity()
+        weather = self.consultWeather()
 
-        # CASO A CIDADE NÃO TENHA CIDO ENCONTRADA
-        if(city.woeid.isnumeric() == False):
-            return False
+        return self.save(weather)
 
-        climate = self.consultClimate(city.woeid)
-
-        return self.save(climate)
+    #RESPONSÁVEL POR FORMATAR O RETORNO
+    def getReturn(self, retorno):
+        return jsonify(retorno['results'])
 
     # RESPONSÁVEL POR BUSCAR O CLIMA NO BANCO
-    def getClimate(self):
-        return self.model.select(self.cidade);
+    def getWeather(self):
+        return self.model.select(self.cidade) if(len(self.cidade)) else {}
 
     # RESPONSÁVEL POR INSERIR UM RETORNO NO BANCO
-    def save(self, climate):
-        self.model.insert(climate)
-        return self.getClimate();
+    def save(self, weather):
+        self.model.insert(weather)
+        return self.getReturn(weather)
 
     # RESPONSÁVEL POR BUSCAR O CLIMA NO WEBSERVICE
-    def consultClimate(self, woeid):
-        response = requests.get('https://api.hgbrasil.com/weather?woeid='+woeid)
-        return response.json()
-
-    # RESPONSÁVEL POR BUSCAR A CIDADE INFORMADA NO WEBSERVICE
-    def getCity(self):
-        key = '17284dd0'
-        response = requests.get('https://api.hgbrasil.com/stats/find_woeid?key='+key+'&format=json-cors&sdk_version=console&city_name='+self.cidade)
+    def consultWeather(self):
+        key       = '7c026697'
+        condition = 'city_name='+self.cidade if(len(self.cidade)) else 'user_ip='+self.ip
+        response  = requests.get('https://api.hgbrasil.com/weather?key='+key+'&'+condition)
         return response.json()
