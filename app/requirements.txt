@@ -2,3 +2,4 @@ sqlalchemy
 psycopg2
 Flask==0.10.1
 redis
+flask_cors
